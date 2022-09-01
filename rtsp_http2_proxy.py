@@ -16,7 +16,13 @@ def reconnect():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   #ExternalSocket = sock
   #del(sock)
-  ExternalSocket = ssl.wrap_socket(sock, certfile="server.pem", keyfile="server.key", ca_certs="ca.pem", ssl_version=ssl.PROTOCOL_TLSv1_2)
+  #ExternalSocket = ssl.wrap_socket(sock, certfile="server.pem", keyfile="server.key", ca_certs="ca.pem", ssl_version=ssl.PROTOCOL_TLSv1_2)
+  context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLSv1_2);
+  context.check_hostname = False;
+  context.verify = False;
+  context.load_verify_locations("ca.pem");
+  context.load_cert_chain(certfile="server.pem", keyfile="server.key")
+  ExternalSocket = context.wrap_socket(sock)
   ExternalSocket.connect(ExternalAddress)
   print("Has connected to", ExternalAddress)
 
