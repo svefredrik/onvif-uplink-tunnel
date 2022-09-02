@@ -5,70 +5,81 @@ import socket
 import ssl
 
 buffer_size = 4096
-LocalAddress = ("192.168.0.106", 80)
-LocalSocket = 0
-ExternalAddress = ("broker.bosch.cam", 8443)
-ExternalSocket = 0
 
-def reconnect():
-  global LocalSocket, ExternalSocket, LocalAddress, ExternalAddress
-
+def connectExternal(address):
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  #ExternalSocket = sock
-  #del(sock)
-  #ExternalSocket = ssl.wrap_socket(sock, certfile="server.pem", keyfile="server.key", ca_certs="ca.pem", ssl_version=ssl.PROTOCOL_TLSv1_2)
+  sock.connect(address)
+  print("Has connected to", address)
+  return sock
+
+def sslConnectExternal(address):
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLSv1_2);
   context.keylog_filename = "keys.log";
   context.check_hostname = False;
   context.verify = False;
   context.load_verify_locations("ca.pem");
   context.load_cert_chain(certfile="server.pem", keyfile="server.key")
-  ExternalSocket = context.wrap_socket(sock)
-  ExternalSocket.connect(ExternalAddress)
-  print("Has connected to", ExternalAddress)
+  sslSock = context.wrap_socket(sock)
+  sslSock.connect(address)
+  print("Has connected to", address)
+  return sslSock
 
+def connectLocal(address):
   LocalSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   LocalSocket.connect(LocalAddress)
-  print("Has connected to", LocalAddress)
-
-  upgrade_str = "GET /xxx http/1.1\r\nHost: {}\r\nConnection: Upgrade\r\nUpgrade: h2c-reverse\r\n\r\n".format(ExternalAddress[0])
-  ExternalSocket.send(upgrade_str.encode())
-  resp = ExternalSocket.recv(buffer_size)
-#  print "DUMP: ", resp
+  print("Has connected to", address)
+  return LocalSocket
 
 class Local2External(threading.Thread):
-  def __init__(self):
+  def __init__(self, ls, es):
     threading.Thread.__init__(self)
+    self.es = es
+    self.ls = ls
 
   def run(self):
-    global LocalSocket, ExternalSocket
     while 1:
-      self.data = LocalSocket.recv(buffer_size)
+      self.data = self.ls.recv(buffer_size)
       if len(self.data) == 0:
         print("Local2External end of file")
-        ExternalSocket.close()
-        reconnect()
+        self.es.shutdown(socket.SHUT_RDWR)
+        break
       else:
-        ExternalSocket.send(self.data)
+        self.es.send(self.data)
 
 class External2Local(threading.Thread):
-  def __init__(self):
+  def __init__(self, es, ls):
     threading.Thread.__init__(self)
+    self.es = es
+    self.ls = ls
 
   def run(self):
-    global LocalSocket, ExternalSocket
     while 1:
-      self.data = ExternalSocket.recv(buffer_size)
+      self.data = self.es.recv(buffer_size)
       if len(self.data) == 0:
         print("External2Local end of file")
-        LocalSocket.close()
-        reconnect()
+        self.ls.shutdown(socket.SHUT_RDWR)
+        break
       else:
-        LocalSocket.send(self.data)
+        self.ls.send(self.data)
 
 if __name__ == '__main__':
-  reconnect()
-  tid1 = Local2External()
-  tid2 = External2Local()
-  tid1.start()
-  tid2.start()
+  while 1:
+    ExternalAddress = ("broker.bosch.cam", 8443)
+    ExternalSocket = sslConnectExternal(ExternalAddress)
+    LocalAddress = ("192.168.0.106", 80)
+    LocalSocket = connectLocal(LocalAddress)
+
+    upgrade_str = "GET /xxx http/1.1\r\nHost: {}\r\nConnection: Upgrade\r\nUpgrade: h2c-reverse\r\n\r\n".format(ExternalAddress[0])
+    ExternalSocket.send(upgrade_str.encode())
+    resp = ExternalSocket.recv(buffer_size)
+    print("DUMP: ", resp)
+
+    threads = []
+    threads.append(Local2External(LocalSocket, ExternalSocket))
+    threads.append(External2Local(ExternalSocket, LocalSocket))
+    for t in threads:
+      t.start()
+    for t in threads:
+      t.join()
+    print("Reconnecting...")
