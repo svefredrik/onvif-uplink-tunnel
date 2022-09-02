@@ -18,6 +18,7 @@ def reconnect():
   #del(sock)
   #ExternalSocket = ssl.wrap_socket(sock, certfile="server.pem", keyfile="server.key", ca_certs="ca.pem", ssl_version=ssl.PROTOCOL_TLSv1_2)
   context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLSv1_2);
+  context.keylog_filename = "keys.log";
   context.check_hostname = False;
   context.verify = False;
   context.load_verify_locations("ca.pem");
