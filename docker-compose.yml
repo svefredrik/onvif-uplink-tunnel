@@ -1,0 +1,7 @@
+version: '3.3'
+
+services:
+  onvif-uplink-tunnel:
+    image: ${APP_NAME}
+    command: ./uplink_proxy.py --local-addr ${LOCAL_ADDR} --local-port ${LOCAL_PORT} --remote-addr ${REMOTE_ADDR} --remote-port ${REMOTE_PORT}
+    network_mode: "host"
