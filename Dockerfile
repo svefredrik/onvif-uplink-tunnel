@@ -13,5 +13,5 @@ FROM runtime-image-${ARCH}
 COPY --from=cv-sdk /axis/python /
 
 WORKDIR /app
-COPY app/* /app
+COPY app/* /app/
 #CMD ["python3", "uplink_proxy.py"]

@@ -12,21 +12,12 @@ def connect(address):
   print('Has connected to', address)
   return sock
 
-def sslConnectLocal(address):
-  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
-  context.keylog_filename = 'keys.log'
-  context.check_hostname = False
-  context.verify_mode = ssl.CERT_NONE
-  sslSock = context.wrap_socket(sock)
-  sslSock.connect(address)
-  print('Has connected to', address)
-  return sslSock
-
 def sslConnectRemote(address):
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+  # Uncomment to enable logging of TLS keys for Wireshark.
   context.keylog_filename = 'keys.log'
+  # Disable cert checking.
   context.check_hostname = False
   context.verify_mode = ssl.CERT_NONE
   #context.load_verify_locations('ca.pem')
@@ -76,23 +67,14 @@ if __name__ == '__main__':
                       help='Remote port to connect to')
   parser.add_argument('--remote-plain', action='store_true',
                       help='Use plain text to connect to remote (no TLS)')
-  parser.add_argument('--local-addr', metavar='ADDR', type=str, default='127.0.0.1',
+  parser.add_argument('--local-addr', metavar='ADDR', type=str, default='127.0.0.6',
                       help='Local address to connect to')
   parser.add_argument('--local-port', metavar='PORT', type=int, default=80,
                       help='Local port to connect to')
-  parser.add_argument('--local-tls', action='store_true',
-                      help='Use TLS to connect to local')
   args = parser.parse_args()
 
-  #print(args.remote_addr, args.remote_port, args.remote_plain)
-  #print(args.local_addr, args.local_port, args.local_tls)
-  #exit(0)
-
   while 1:
-    if args.local_tls:
-      LocalSocket = sslConnectLocal((args.local_addr, args.local_port))
-    else:
-      LocalSocket = connect((args.local_addr, args.local_port))
+    LocalSocket = connect((args.local_addr, args.local_port))
     if args.remote_plain:
       RemoteSocket = connect((args.remote_addr, args.remote_port))
     else:
